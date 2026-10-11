@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0e0e15" />
+  <title>Podcast Clip Studio — AI-powered long-form highlights</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-symbol">✦</span><span>clip<span class="brand-light">studio</span><small>PRIVATE WORKSPACE</small></span></div>
+      <div class="sidebar-label">WORKSPACE</div>
+      <div class="nav-item active"><span class="nav-icon">◈</span> Create clips <span class="nav-marker">●</span></div>
+      <a class="nav-item" href="#history" id="resultsNav"><span class="nav-icon">▤</span> Your exports</a>
+      <div class="sidebar-label secondary">RESOURCES</div>
+      <a class="nav-item" href="#how-it-works"><span class="nav-icon">◫</span> How it works</a>
+      <a class="nav-item" href="https://github.com/openai/whisper" target="_blank" rel="noopener"><span class="nav-icon">↗</span> Transcription engine</a>
+      <div class="sidebar-bottom"><div class="local-dot"></div><div><b>Private workspace</b><small>Video handled by your workspace</small></div></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div class="crumb">Workspace <span>›</span> Create clips</div><div class="top-right"><span class="topbadge">● &nbsp; Private workspace</span><span class="avatar">CS</span></div></header>
+      <div class="content">
+        <div class="hero-kicker"><span class="sparkle">✳</span> YOUR AI VIDEO EDITING STUDIO</div>
+        <h1>Turn long conversations<br />into <em>great stories.</em></h1>
+        <p class="hero-desc">Find every worthwhile 3–4 minute moment in a full podcast. Your AI identifies meaningful segments, writes titles, designs thumbnails, and exports Full HD videos.</p>
+        <div class="feature-pills"><span>◷ &nbsp;3–4 min clips</span><span>▣ &nbsp;1080p · 16:9</span><span>✦ &nbsp;AI-curated highlights</span><span>∞ &nbsp;No fixed clip limit</span></div>
+
+        <div class="workspace-grid">
+          <section class="panel composer">
+            <div class="panel-header"><div><div class="eyebrow">STEP 01</div><h2>Start a new project</h2><p>Connect the episode to your original video source.</p></div><div class="step-number">01 / 03</div></div>
+            <form id="jobForm">
+              <label for="episodeUrl" class="field-label">SPOTIFY EPISODE URL <span>Required</span></label>
+              <div class="input-row"><span class="spotify-mark">◉</span><input id="episodeUrl" name="spotify_url" type="url" required spellcheck="false" value="https://open.spotify.com/episode/0ZLhKjfvOYlosTelLqBaqZ" placeholder="https://open.spotify.com/episode/..." /><button type="button" id="lookupBtn" class="subtle-button">Look up ↗</button></div>
+              <div class="episode-card" id="episodeCard" hidden><div class="episode-icon" id="episodeArtwork">♫</div><div><div class="mini-label">EPISODE DETECTED</div><strong id="episodeTitle"></strong><small id="episodeNote"></small></div><div class="verified-icon">✓</div></div>
+
+              <label for="videoFile" class="field-label upload-label">FULL-LENGTH VIDEO FILE <span>Required for editing</span></label>
+              <label id="dropzone" class="dropzone" for="videoFile" tabindex="0" role="button" aria-label="Choose your authorised podcast video">
+                <input type="file" name="video" id="videoFile" accept=".mp4,.mov,.mkv,.webm,.m4v,video/*" />
+                <span class="upload-icon">↑</span>
+                <strong id="fileHeadline">Drop your full podcast video here</strong>
+                <span id="fileSubhead">or <u>browse to choose a file</u> · MP4, MOV, MKV, WebM, M4V</span>
+                <span class="upload-foot">For online hosting, your selected video uploads to your private server.</span>
+              </label>
+              <div class="source-note"><span>ⓘ</span><p>Spotify links identify episodes but do not provide an editable video file. Use a recording you have permission to process. This app does not extract protected Spotify streams.</p></div>
+              <div class="line"></div>
+              <div class="eyebrow">STEP 02</div><h3>Clip settings</h3>
+              <div class="setting-grid">
+                <div class="setting"><div class="setting-name">Clip duration</div><div class="fixed-setting">3:00 – 4:00 <span>FIXED</span></div></div>
+                <div class="setting"><div class="setting-name">Video format</div><div class="fixed-setting">1080p · 16:9 <span>FIXED</span></div></div>
+                <div class="setting"><label for="mode" class="setting-name">Highlight selection</label><select id="mode" name="mode"><option value="smart">✦ Smart AI highlights</option><option value="draft">Draft cuts (no API key)</option></select></div>
+                <div class="setting"><label for="whisper" class="setting-name">Transcription accuracy</label><select id="whisper" name="whisper"><option value="base">Fast · Base</option><option value="small" selected>Balanced · Small</option><option value="medium">Detailed · Medium</option></select></div>
+              </div>
+              <div id="modeExplanation" class="mode-explain">Smart AI reviews the entire transcript in overlapping windows, selects self-contained stories, and names each clip. Requires an OpenAI API key configured on the server.</div>
+              <label class="rights-check"><input type="checkbox" id="rightsCheck" required /><span>I have permission to process this source video and will review rights before publishing clips.</span></label>
+              <button class="primary-button" type="submit" id="submitBtn"><span>✦</span> Generate all qualifying clips <span class="button-arrow">↗</span></button>
+              <div id="formError" class="error" role="alert" hidden></div>
+            </form>
+          </section>
+
+          <aside class="right-rail">
+            <div class="preview-panel"><div class="preview-top"><div>YOUR OUTPUT FORMAT</div><span>● FORMAT MOCKUP</span></div><div class="frame-preview"><div class="frame-topline">PODCAST CLIP</div><div class="frame-shine"></div><div class="frame-title">ONE GREAT<br /><em>CONVERSATION.</em></div><div class="frame-duration">03:42 <span>•</span> FULL HD</div></div><div class="preview-bottom"><div>1920 × 1080</div><div>16:9 LANDSCAPE</div></div></div>
+            <div class="included-panel"><h3>Everything, automatically.</h3><div class="include-item"><span>✓</span><div><b>Every strong highlight</b><p>AI finds standalone conversations, not arbitrary timestamps.</p></div></div><div class="include-item"><span>✓</span><div><b>Frame-accurate clips</b><p>Full motion video, natural cuts, and original audio.</p></div></div><div class="include-item"><span>✓</span><div><b>Titles + thumbnails</b><p>Individual JPG covers and truthful YouTube-ready titles.</p></div></div><div class="include-item"><span>✓</span><div><b>One ZIP download</b><p>Videos, artwork, timestamps, and an editable CSV list.</p></div></div></div>
+            <div class="tip-panel"><div class="tip-icon">✧</div><div><b>Quality over quantity</b><p>There's no maximum number of clips. The AI only includes moments that meet its quality bar.</p></div></div>
+          </aside>
+        </div>
+
+        <section class="progress-panel" id="progressSection" hidden aria-live="polite"><div class="row"><div><div class="eyebrow">STEP 03</div><h2 id="progressTitle">Processing your podcast</h2><p id="progressMessage">Preparing your job...</p></div><strong id="progressPercent">0%</strong></div><div class="progress-track"><div id="progressBar" class="progress-fill" style="width:0%"></div></div><div class="processing-notice">Your private processing server handles the recording. Processing long episodes and rendering many 1080p videos uses significant CPU, time, and disk space.</div></section>
+
+        <section class="results-panel" id="results" hidden><div class="result-heading"><div><div class="eyebrow">YOUR VIDEO LIBRARY</div><h2 id="resultCount">Your clips are ready</h2><p>Review clips before posting. Each comes with a title and 1280 × 720 thumbnail.</p></div><a id="downloadAll" class="download-all" href="#">↓ &nbsp; Download all as ZIP</a></div><div class="clip-grid" id="clipGrid"></div></section>
+
+        <section class="history-panel" id="history" hidden><div class="eyebrow">YOUR SAVED WORK</div><h2>Previous projects</h2><div id="historyJobs" class="history-items"></div></section>
+
+        <section class="how" id="how-it-works"><div class="how-left"><div class="eyebrow">BUILT FOR LONG-FORM</div><h2>Less scrubbing.<br /><em>More publishing.</em></h2></div><div class="how-right"><div><span>01</span> Locate the Spotify episode and provide the usable video recording.</div><div><span>02</span> The transcript gets analysed for self-contained 3–4 minute stories.</div><div><span>03</span> Get your full-resolution videos, unique titles and thumbnails.</div></div></section>
+        <footer>Clip Studio <span>•</span> Private AI clipping studio <span>•</span> No Spotify audio/video is downloaded by this app.</footer>
+      </div>
+    </main>
+  </div>
+  <dialog id="videoDialog" class="video-dialog" aria-label="Preview podcast clip">
+    <div class="video-modal-head"><strong id="videoModalTitle">Clip preview</strong><button type="button" id="closeVideoModal" aria-label="Close preview">✕</button></div>
+    <video id="clipPlayer" controls playsinline preload="metadata"></video>
+    <p>Review the segment and its context before uploading it anywhere.</p>
+  </dialog>
+  <script src="/static/app.js"></script>
+</body>
+</html>
