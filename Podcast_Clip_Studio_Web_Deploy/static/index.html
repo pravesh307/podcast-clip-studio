@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0e0e15" />
   <title>Podcast Clip Studio — AI-powered long-form highlights</title>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=2" />
 </head>
 <body>
   <div class="app-shell">
@@ -25,35 +25,40 @@
       <div class="content">
         <div class="hero-kicker"><span class="sparkle">✳</span> YOUR AI VIDEO EDITING STUDIO</div>
         <h1>Turn long conversations<br />into <em>great stories.</em></h1>
-        <p class="hero-desc">Find every worthwhile 3–4 minute moment in a full podcast. Your AI identifies meaningful segments, writes titles, designs thumbnails, and exports Full HD videos.</p>
-        <div class="feature-pills"><span>◷ &nbsp;3–4 min clips</span><span>▣ &nbsp;1080p · 16:9</span><span>✦ &nbsp;AI-curated highlights</span><span>∞ &nbsp;No fixed clip limit</span></div>
+        <p class="hero-desc">Paste a link. Pick your clip length. AI finds complete stories, catches the funniest moments, and packages them with punchy titles and expressive thumbnails.</p>
+        <div class="feature-pills"><span>◷ &nbsp;3–15 min clips</span><span>▣ &nbsp;1080p · 16:9</span><span>✦ &nbsp;AI-curated highlights</span><span>∞ &nbsp;No fixed clip limit</span></div>
 
         <div class="workspace-grid">
           <section class="panel composer">
-            <div class="panel-header"><div><div class="eyebrow">STEP 01</div><h2>Start a new project</h2><p>Connect the episode to your original video source.</p></div><div class="step-number">01 / 03</div></div>
+            <div class="panel-header"><div><div class="eyebrow">STEP 01</div><h2>Start a new project</h2><p>Start with a YouTube video or Spotify episode link.</p></div><div class="step-number">01 / 03</div></div>
             <form id="jobForm">
-              <label for="episodeUrl" class="field-label">SPOTIFY EPISODE URL <span>Required</span></label>
-              <div class="input-row"><span class="spotify-mark">◉</span><input id="episodeUrl" name="spotify_url" type="url" required spellcheck="false" value="https://open.spotify.com/episode/0ZLhKjfvOYlosTelLqBaqZ" placeholder="https://open.spotify.com/episode/..." /><button type="button" id="lookupBtn" class="subtle-button">Look up ↗</button></div>
+              <label for="episodeUrl" class="field-label">YOUTUBE OR SPOTIFY LINK <span>Required</span></label>
+              <div class="input-row"><span class="spotify-mark">◉</span><input id="episodeUrl" name="source_url" type="url" spellcheck="false" placeholder="Paste a YouTube video or Spotify episode link" /><button type="button" id="lookupBtn" class="subtle-button">Look up ↗</button></div>
               <div class="episode-card" id="episodeCard" hidden><div class="episode-icon" id="episodeArtwork">♫</div><div><div class="mini-label">EPISODE DETECTED</div><strong id="episodeTitle"></strong><small id="episodeNote"></small></div><div class="verified-icon">✓</div></div>
 
-              <label for="videoFile" class="field-label upload-label">FULL-LENGTH VIDEO FILE <span>Required for editing</span></label>
-              <label id="dropzone" class="dropzone" for="videoFile" tabindex="0" role="button" aria-label="Choose your authorised podcast video">
-                <input type="file" name="video" id="videoFile" accept=".mp4,.mov,.mkv,.webm,.m4v,video/*" />
-                <span class="upload-icon">↑</span>
-                <strong id="fileHeadline">Drop your full podcast video here</strong>
-                <span id="fileSubhead">or <u>browse to choose a file</u> · MP4, MOV, MKV, WebM, M4V</span>
-                <span class="upload-foot">For online hosting, your selected video uploads to your private server.</span>
-              </label>
-              <div class="source-note"><span>ⓘ</span><p>Spotify links identify episodes but do not provide an editable video file. Use a recording you have permission to process. This app does not extract protected Spotify streams.</p></div>
+              <div id="sourceCandidates" class="source-candidates" hidden></div>
+              <div class="source-note"><span>↗</span><p>YouTube: import directly from the link. Spotify: find and confirm the episode's YouTube version. Spotify-only recordings cannot be imported as video.</p></div>
+              <details class="upload-option"><summary>Have a file instead? Optional upload</summary>
+                <label id="dropzone" class="dropzone" for="videoFile" tabindex="0" role="button" aria-label="Choose your podcast video">
+                  <input type="file" name="video" id="videoFile" accept=".mp4,.mov,.mkv,.webm,.m4v,video/*" />
+                  <span class="upload-icon">↑</span><strong id="fileHeadline">Drop a video here</strong>
+                  <span id="fileSubhead">or <u>choose a file</u> · MP4, MOV, MKV, WebM, M4V</span>
+                  <span class="upload-foot">Only needed if link import is unavailable.</span>
+                </label>
+                <button type="button" id="clearFile" class="subtle-button">Remove file</button>
+              </details>
               <div class="line"></div>
               <div class="eyebrow">STEP 02</div><h3>Clip settings</h3>
               <div class="setting-grid">
-                <div class="setting"><div class="setting-name">Clip duration</div><div class="fixed-setting">3:00 – 4:00 <span>FIXED</span></div></div>
+                <div class="setting"><label for="clipMinutes" class="setting-name">Target clip length</label><select id="clipMinutes"><option value="3">3 minutes</option><option value="4" selected>4 minutes</option><option value="5">5 minutes</option><option value="6">6 minutes</option><option value="7">7 minutes</option><option value="8">8 minutes</option><option value="9">9 minutes</option><option value="10">10 minutes</option><option value="11">11 minutes</option><option value="12">12 minutes</option><option value="13">13 minutes</option><option value="14">14 minutes</option><option value="15">15 minutes</option></select></div>
                 <div class="setting"><div class="setting-name">Video format</div><div class="fixed-setting">1080p · 16:9 <span>FIXED</span></div></div>
                 <div class="setting"><label for="mode" class="setting-name">Highlight selection</label><select id="mode" name="mode"><option value="smart">✦ Smart AI highlights</option><option value="draft">Draft cuts (no API key)</option></select></div>
-                <div class="setting"><label for="whisper" class="setting-name">Transcription accuracy</label><select id="whisper" name="whisper"><option value="base">Fast · Base</option><option value="small" selected>Balanced · Small</option><option value="medium">Detailed · Medium</option></select></div>
+                <div class="setting"><label for="whisper" class="setting-name">Transcription accuracy</label><select id="whisper" name="whisper"><option value="base" selected>Fast · Base</option><option value="small">Balanced · Small</option><option value="medium">Detailed · Medium</option></select></div>
               </div>
-              <div id="modeExplanation" class="mode-explain">Smart AI reviews the entire transcript in overlapping windows, selects self-contained stories, and names each clip. Requires an OpenAI API key configured on the server.</div>
+              <div class="setting style-setting"><label for="titleStyle" class="setting-name">Title &amp; thumbnail direction</label><select id="titleStyle"><option value="funny">Funny &amp; playful — relevant, never forced</option><option value="curiosity">Curiosity — surprising ideas &amp; stories</option><option value="insight">Insight — clear takeaways &amp; strong opinions</option></select></div>
+              <p class="mode-explain">Clips stay within 3–15 minutes. AI can vary the selected length by up to 20 seconds to finish a sentence or story naturally.</p>
+              <div id="aiSetup" class="ai-setup" hidden><label for="apiKey" class="field-label">OPENAI API KEY <span>For this job only</span></label><input id="apiKey" type="password" autocomplete="off" placeholder="Paste your API key for Smart AI" /><p>The transcript and candidate thumbnail frames go to OpenAI. API usage is billed to your account, separately from ChatGPT. Your key is held only in memory while this job runs.</p></div>
+              <div id="modeExplanation" class="mode-explain">Smart AI reviews the entire transcript in overlapping windows, selects self-contained stories, and names each clip. Smart AI requires an OpenAI API key.</div>
               <label class="rights-check"><input type="checkbox" id="rightsCheck" required /><span>I have permission to process this source video and will review rights before publishing clips.</span></label>
               <button class="primary-button" type="submit" id="submitBtn"><span>✦</span> Generate all qualifying clips <span class="button-arrow">↗</span></button>
               <div id="formError" class="error" role="alert" hidden></div>
@@ -62,7 +67,7 @@
 
           <aside class="right-rail">
             <div class="preview-panel"><div class="preview-top"><div>YOUR OUTPUT FORMAT</div><span>● FORMAT MOCKUP</span></div><div class="frame-preview"><div class="frame-topline">PODCAST CLIP</div><div class="frame-shine"></div><div class="frame-title">ONE GREAT<br /><em>CONVERSATION.</em></div><div class="frame-duration">03:42 <span>•</span> FULL HD</div></div><div class="preview-bottom"><div>1920 × 1080</div><div>16:9 LANDSCAPE</div></div></div>
-            <div class="included-panel"><h3>Everything, automatically.</h3><div class="include-item"><span>✓</span><div><b>Every strong highlight</b><p>AI finds standalone conversations, not arbitrary timestamps.</p></div></div><div class="include-item"><span>✓</span><div><b>Frame-accurate clips</b><p>Full motion video, natural cuts, and original audio.</p></div></div><div class="include-item"><span>✓</span><div><b>Titles + thumbnails</b><p>Individual JPG covers and truthful YouTube-ready titles.</p></div></div><div class="include-item"><span>✓</span><div><b>One ZIP download</b><p>Videos, artwork, timestamps, and an editable CSV list.</p></div></div></div>
+            <div class="included-panel"><h3>Everything, automatically.</h3><div class="include-item"><span>✓</span><div><b>Every strong highlight</b><p>AI finds standalone conversations, not arbitrary timestamps.</p></div></div><div class="include-item"><span>✓</span><div><b>Natural story cuts</b><p>Full motion video, natural cuts, and original audio.</p></div></div><div class="include-item"><span>✓</span><div><b>Titles + thumbnails</b><p>AI-picked real frames, bold captions, and three alternate YouTube titles.</p></div></div><div class="include-item"><span>✓</span><div><b>One ZIP download</b><p>Videos, artwork, timestamps, and an editable CSV list.</p></div></div></div>
             <div class="tip-panel"><div class="tip-icon">✧</div><div><b>Quality over quantity</b><p>There's no maximum number of clips. The AI only includes moments that meet its quality bar.</p></div></div>
           </aside>
         </div>
@@ -73,8 +78,8 @@
 
         <section class="history-panel" id="history" hidden><div class="eyebrow">YOUR SAVED WORK</div><h2>Previous projects</h2><div id="historyJobs" class="history-items"></div></section>
 
-        <section class="how" id="how-it-works"><div class="how-left"><div class="eyebrow">BUILT FOR LONG-FORM</div><h2>Less scrubbing.<br /><em>More publishing.</em></h2></div><div class="how-right"><div><span>01</span> Locate the Spotify episode and provide the usable video recording.</div><div><span>02</span> The transcript gets analysed for self-contained 3–4 minute stories.</div><div><span>03</span> Get your full-resolution videos, unique titles and thumbnails.</div></div></section>
-        <footer>Clip Studio <span>•</span> Private AI clipping studio <span>•</span> No Spotify audio/video is downloaded by this app.</footer>
+        <section class="how" id="how-it-works"><div class="how-left"><div class="eyebrow">BUILT FOR LONG-FORM</div><h2>Less scrubbing.<br /><em>More publishing.</em></h2></div><div class="how-right"><div><span>01</span> Paste a YouTube link, or find the YouTube version of a Spotify episode.</div><div><span>02</span> Choose 3–15 minutes. AI looks for strong hooks, full stories, and a payoff.</div><div><span>03</span> Get your full-resolution videos, unique titles and thumbnails.</div></div></section>
+        <footer>Clip Studio <span>•</span> Private AI clipping studio <span>•</span> Accessible recordings only · Review every clip before publishing.</footer>
       </div>
     </main>
   </div>
@@ -83,6 +88,6 @@
     <video id="clipPlayer" controls playsinline preload="metadata"></video>
     <p>Review the segment and its context before uploading it anywhere.</p>
   </dialog>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=2"></script>
 </body>
 </html>
