@@ -11,6 +11,8 @@ services:
         value: /app/data
       - key: MAX_UPLOAD_GB
         value: "6"
+      - key: APP_USERNAME
+        value: pravesh
       - key: APP_PASSWORD
         sync: false
       - key: OPENAI_CLIP_MODEL

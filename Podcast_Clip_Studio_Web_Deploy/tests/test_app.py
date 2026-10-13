@@ -35,6 +35,6 @@ def test_hosted_password_auth(monkeypatch):
     monkeypatch.setenv("PUBLIC_DEPLOY", "1")
     monkeypatch.setenv("APP_PASSWORD", "secret-test-password")
     assert client.get("/").status_code == 401
-    assert client.get("/", auth=("studio", "wrong")).status_code == 401
-    assert client.get("/", auth=("studio", "secret-test-password")).status_code == 200
+    assert client.get("/", auth=("pravesh", "wrong")).status_code == 401
+    assert client.get("/", auth=("pravesh", "secret-test-password")).status_code == 200
     assert client.get("/api/jobs").status_code == 401
