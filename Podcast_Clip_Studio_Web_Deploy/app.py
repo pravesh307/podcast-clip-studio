@@ -20,7 +20,7 @@ import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from sources import parse_source, source_info, find_youtube_versions, download_youtube
 
 from engine import render_job
 
@@ -53,7 +53,7 @@ async def protect_private_workspace(request: Request, call_next):
             try:
                 decoded = base64.b64decode(value[6:], validate=True).decode("utf-8")
                 user, supplied = decoded.split(":", 1)
-                permitted = hmac.compare_digest(user, "studio") and hmac.compare_digest(supplied, password)
+                permitted = hmac.compare_digest(user, os.getenv("APP_USERNAME", "pravesh")) and hmac.compare_digest(supplied, password)
             except (UnicodeDecodeError, ValueError):
                 pass
         if not permitted:
@@ -106,18 +106,28 @@ def parse_episode_id(url: str) -> str:
 
 
 def episode_info(url: str) -> dict:
-    episode_id = parse_episode_id(url)
-    canonical = f"https://open.spotify.com/episode/{episode_id}"
-    result = {"id": episode_id, "url": canonical, "title": "Podcast Episode", "thumbnail": None}
+    return source_info(url)
+
+
+@APP.get("/api/config")
+def config():
+    return {"ai_configured": bool(os.getenv("OPENAI_API_KEY")), "min_minutes": 3, "max_minutes": 15,
+            "max_upload_gb": round(MAX_UPLOAD_BYTES / 1024**3, 1)}
+
+
+@APP.get("/api/source-candidates")
+def source_candidates(url: str):
     try:
-        response = requests.get("https://open.spotify.com/oembed", params={"url": canonical}, timeout=9)
-        response.raise_for_status()
-        meta = response.json()
-        result["title"] = str(meta.get("title") or "Podcast Episode")[:200]
-        result["thumbnail"] = meta.get("thumbnail_url")
-    except (requests.RequestException, ValueError):
-        result["note"] = "Episode ID recognised, but Spotify metadata could not be loaded right now."
-    return result
+        meta = source_info(url)
+        if meta["platform"] != "spotify":
+            return {"candidates": []}
+        if meta.get("note"):
+            raise ValueError("Spotify could not return the episode title. Paste its YouTube video link instead.")
+        return {"candidates": find_youtube_versions(meta["title"])}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @APP.get("/")
@@ -140,57 +150,107 @@ def _update_job(job_id: str, message: str, progress: int):
             JOBS[job_id]["progress"] = progress
 
 
-def _run_job(job_id: str, video: Path, output: Path, url: str, title: str, whisper_model: str, selection_mode: str):
+def _run_job(job_id: str, video: Path | None, output: Path, url: str, title: str,
+             whisper_model: str, selection_mode: str, clip_minutes: int, style: str,
+             download_url: str, api_key: str):
     with LOCK:
         JOBS[job_id]["status"] = "working"
     try:
+        if video is None:
+            video, title = download_youtube(download_url, output.parent,
+                                           lambda msg, pct: _update_job(job_id, msg, pct), MAX_UPLOAD_BYTES)
+            with LOCK:
+                JOBS[job_id]["episode"]["title"] = title
         manifest = render_job(video, output, url, title, whisper_model, selection_mode,
                               os.getenv("OPENAI_CLIP_MODEL", "gpt-4.1-mini"),
-                              lambda message, progress: _update_job(job_id, message, progress))
+                              lambda message, progress: _update_job(job_id, message, 15 + round(progress * .85)),
+                              clip_minutes=clip_minutes, style=style, api_key=api_key)
         with LOCK:
             JOBS[job_id].update(status="complete", manifest=manifest, progress=100, message="All clips are ready")
     except Exception as exc:
+        message = str(exc)
+        if api_key:
+            message = message.replace(api_key, "[redacted]")
         with LOCK:
-            JOBS[job_id].update(status="failed", message=f"{type(exc).__name__}: {exc}")
+            JOBS[job_id].update(status="failed", message=message[:1200])
+    finally:
+        api_key = ""
+        # Keep exported clips, release the much larger original recording.
+        if video is not None:
+            video.unlink(missing_ok=True)
 
 
 @APP.post("/api/jobs", status_code=202)
-async def create_job(spotify_url: str = Form(...), video: UploadFile = File(...),
-                     mode: str = Form("smart"), whisper: str = Form("small")):
+async def create_job(source_url: str = Form(""), spotify_url: str = Form(""),
+                     youtube_url: str = Form(""), video: UploadFile | None = File(None),
+                     mode: str = Form("smart"), whisper: str = Form("base"),
+                     clip_minutes: int = Form(4), style: str = Form("funny"),
+                     api_key: str = Form(""), rights_confirmed: bool = Form(False)):
+    if not rights_confirmed:
+        raise HTTPException(status_code=422, detail="Confirm permission to process this recording.")
+    if not 3 <= clip_minutes <= 15:
+        raise HTTPException(status_code=422, detail="Choose a clip length between 3 and 15 minutes.")
+    if mode not in {"smart", "draft"} or style not in {"funny", "curiosity", "insight"}:
+        raise HTTPException(status_code=422, detail="Unknown selection mode or title style.")
+    if whisper not in {"base", "small", "medium"}:
+        raise HTTPException(status_code=422, detail="Unknown transcription size.")
+    api_key = api_key.strip() or os.getenv("OPENAI_API_KEY", "")
+    if mode == "smart" and not api_key:
+        raise HTTPException(status_code=422, detail="Add your OpenAI API key below to use Smart AI, or select Draft cuts.")
     try:
-        metadata = episode_info(spotify_url)
+        source = parse_source(source_url or spotify_url) if (source_url or spotify_url) else None
+        if source is None and video is None:
+            raise ValueError("Paste a YouTube video or Spotify episode link.")
+        download_url = source["url"] if source else ""
+        if video is None and source["platform"] == "spotify":
+            if not youtube_url:
+                raise ValueError("Spotify does not supply video downloads. Click Look up and select its YouTube version, or paste that YouTube link.")
+            candidate = parse_source(youtube_url)
+            if candidate["platform"] != "youtube":
+                raise ValueError("The matching recording must be a YouTube video.")
+            download_url = candidate["url"]
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    if mode not in {"smart", "draft"}:
-        raise HTTPException(status_code=422, detail="Unknown clipping mode")
-    if whisper not in {"base", "small", "medium"}:
-        raise HTTPException(status_code=422, detail="Unknown transcription size")
-    if mode == "smart" and not os.getenv("OPENAI_API_KEY"):
-        raise HTTPException(status_code=422, detail="Smart mode requires OPENAI_API_KEY. Set it in your terminal, or choose Draft mode.")
-    suffix = Path(video.filename or "podcast.mp4").suffix.lower()
-    if suffix not in {".mp4", ".mov", ".mkv", ".webm", ".m4v"}:
-        raise HTTPException(status_code=422, detail="Upload an MP4, MOV, MKV, WEBM, or M4V video file")
-    job_id = uuid.uuid4().hex[:14]
+    suffix = Path(video.filename or "source.mp4").suffix.lower() if video else ""
+    if video and suffix not in {".mp4", ".mov", ".mkv", ".webm", ".m4v"}:
+        raise HTTPException(status_code=422, detail="Upload an MP4, MOV, MKV, WEBM, or M4V video.")
+    # Avoid an unbounded queue on the small processing server.
+    with LOCK:
+        if any(j["status"] in {"queued", "working", "uploading"} for j in JOBS.values()):
+            raise HTTPException(status_code=409, detail="A project is already processing. Wait for it to finish.")
+        job_id = uuid.uuid4().hex[:14]
+        metadata = {"url": source["url"] if source else "", "title": "Video project"}
+        JOBS[job_id] = {"job_id": job_id, "status": "uploading" if video else "queued", "progress": 0,
+                        "message": "Preparing source...", "episode": metadata, "manifest": None}
     folder = DATA / job_id
-    folder.mkdir()
-    video_path = folder / ("source" + suffix)
-    count = 0
+    video_path = None
     try:
-        with video_path.open("wb") as destination:
-            while block := await video.read(8 * 1024 * 1024):
-                count += len(block)
-                if count > MAX_UPLOAD_BYTES:
-                    raise HTTPException(status_code=413, detail="Maximum video size is 12 GB")
-                destination.write(block)
+        folder.mkdir()
+        if video:
+            video_path = folder / ("source" + suffix)
+            count = 0
+            with video_path.open("wb") as destination:
+                while block := await video.read(8 * 1024 * 1024):
+                    count += len(block)
+                    if count > MAX_UPLOAD_BYTES:
+                        raise HTTPException(status_code=413, detail=f"Maximum video size is {MAX_UPLOAD_BYTES / 1024**3:g} GB")
+                    destination.write(block)
+            if not count:
+                raise HTTPException(status_code=422, detail="The uploaded video is empty.")
+            metadata["title"] = Path(video.filename or "Video project").stem[:200]
+        with LOCK:
+            JOBS[job_id]["status"] = "queued"
+        EXECUTOR.submit(_run_job, job_id, video_path, folder / "clips", metadata["url"], metadata["title"],
+                        whisper, mode, clip_minutes, style, download_url, api_key)
     except Exception:
-        video_path.unlink(missing_ok=True)
+        if video_path:
+            video_path.unlink(missing_ok=True)
+        with LOCK:
+            JOBS.pop(job_id, None)
         raise
     finally:
-        await video.close()
-    with LOCK:
-        JOBS[job_id] = {"job_id": job_id, "status": "queued", "progress": 0, "message": "Waiting for processing slot...",
-                        "episode": metadata, "manifest": None}
-    EXECUTOR.submit(_run_job, job_id, video_path, folder / "clips", metadata["url"], metadata["title"], whisper, mode)
+        if video:
+            await video.close()
     return {"job_id": job_id, "status": "queued"}
 
 
